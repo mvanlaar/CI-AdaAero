@@ -55,6 +55,9 @@ namespace StarAlliance_AirlineParser
                                 {
                                     // Only Direct flights
                                     Console.WriteLine("{0} - {1}", flight.NumeroVuelo, flight.Ruta);
+
+                                    // Prices                                     
+                                    // /app/api/TarifaWeb?cupos=1&fechaVuelo=2016-12-28T00:00:00&idVuelo=86056
                                 }
                             }
                         }
