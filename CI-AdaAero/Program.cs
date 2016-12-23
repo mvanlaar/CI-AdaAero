@@ -51,7 +51,11 @@ namespace StarAlliance_AirlineParser
                             dynamic dynJsonResult = JsonConvert.DeserializeObject(response);
                             foreach (var flight in dynJsonResult)
                             {
-                                Console.WriteLine("{0} - {1}", flight.NumeroVuelo, flight.Ruta);                                
+                                if (flight.TipoVuelo == "Directo")
+                                {
+                                    // Only Direct flights
+                                    Console.WriteLine("{0} - {1}", flight.NumeroVuelo, flight.Ruta);
+                                }
                             }
                         }
                     }
