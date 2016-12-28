@@ -38,14 +38,14 @@ namespace StarAlliance_AirlineParser
                     Console.WriteLine("Parsing flights from: {0} - {1}", from.CityName, from.IataCode);
                     foreach (var to in from.Locations)
                     {
-                        // Getting Flights for a period of 3 months from now
+                        // Getting Flights for a period of 1 month from now
 
                         DateTime StartDate = DateTime.Now;
-                        DateTime EndDate = StartDate.AddDays(90);
+                        DateTime EndDate = StartDate.AddDays(30);
                         int DayInterval = 1;
                         while (StartDate.AddDays(DayInterval) <= EndDate)
                         {                            
-                            Console.WriteLine("Getting flight: {0} - {1}", from.CityName, to.CityName);
+                            Console.WriteLine("Getting flight: {0} - {1} - {2}", from.CityName, to.CityName, StartDate.ToString());
                             using (WebClient clientFlightCheck = new WebClient())
                             {
                                 clientFlightCheck.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko");
@@ -96,40 +96,63 @@ namespace StarAlliance_AirlineParser
                                         if (TEMP_Conversie == 6) { TEMP_FlightFriday = true; }
                                         if (TEMP_Conversie == 7) { TEMP_FlightSaterday = true; }
 
+                                        // check if flight fly
 
-
-                                        CIFLights.Add(new CIFLight
+                                        if (TEMP_FlightMonday | TEMP_FlightTuesday | TEMP_FlightWednesday | TEMP_FlightThursday | TEMP_FlightFriday | TEMP_FlightSaterday | TEMP_FlightSunday)
                                         {
-                                            FromIATA = flight.SiglaCiudadOrigen,
-                                            FromIATARegion = "",
-                                            FromIATACountry = "",
-                                            FromIATATerminal = "",
-                                            ToIATA = flight.SiglaCiudadDestino,
-                                            ToIATACountry = "",
-                                            ToIATARegion = "",
-                                            ToIATATerminal = "",
-                                            FromDate = flight.Fecha,
-                                            ToDate = flight.Fecha,
-                                            ArrivalTime = flight.Llegada,
-                                            DepartTime = flight.Salida,
-                                            FlightAircraft = flight.Nombre,
-                                            FlightAirline = "1DA",
-                                            FlightMonday = TEMP_FlightMonday,
-                                            FlightTuesday = TEMP_FlightTuesday,
-                                            FlightWednesday = TEMP_FlightWednesday,
-                                            FlightThursday = TEMP_FlightThursday,
-                                            FlightFriday = TEMP_FlightFriday,
-                                            FlightSaterday = TEMP_FlightSaterday,
-                                            FlightSunday = TEMP_FlightSunday,
-                                            FlightNumber = flight.NumeroVuelo,
-                                            FlightOperator = "",
-                                            FlightCodeShare = false,
-                                            FlightNextDayArrival = false,
-                                            FlightNextDays = 0,
-                                            FlightNonStop = true,
-                                            FlightVia = ""
-                                        });
+                                            bool alreadyExists = CIFLights.Exists(x => x.FromIATA == Convert.ToString(flight.SiglaCiudadOrigen)
+                                            && x.ToIATA == Convert.ToString(flight.SiglaCiudadDestino)
+                                            && x.FromDate == Convert.ToDateTime(flight.Fecha)
+                                            && x.ToDate == Convert.ToDateTime(flight.Fecha)
+                                            && x.FlightNumber == Convert.ToString(flight.NumeroVuelo)
+                                            && x.FlightAirline == "1DA"
+                                            && x.FlightMonday == TEMP_FlightMonday
+                                            && x.FlightTuesday == TEMP_FlightTuesday
+                                            && x.FlightWednesday == TEMP_FlightWednesday
+                                            && x.FlightThursday == TEMP_FlightThursday
+                                            && x.FlightFriday == TEMP_FlightFriday
+                                            && x.FlightSaterday == TEMP_FlightSaterday
+                                            && x.FlightSunday == TEMP_FlightSunday);
 
+                                            if (alreadyExists)
+                                            {
+                                                Console.WriteLine("Flight Already found...");
+                                            }
+                                            else
+                                            {
+                                                CIFLights.Add(new CIFLight
+                                                {
+                                                    FromIATA = flight.SiglaCiudadOrigen,
+                                                    FromIATARegion = "",
+                                                    FromIATACountry = "",
+                                                    FromIATATerminal = "",
+                                                    ToIATA = flight.SiglaCiudadDestino,
+                                                    ToIATACountry = "",
+                                                    ToIATARegion = "",
+                                                    ToIATATerminal = "",
+                                                    FromDate = flight.Fecha,
+                                                    ToDate = flight.Fecha,
+                                                    ArrivalTime = flight.Llegada,
+                                                    DepartTime = flight.Salida,
+                                                    FlightAircraft = flight.Nombre,
+                                                    FlightAirline = "1DA",
+                                                    FlightMonday = TEMP_FlightMonday,
+                                                    FlightTuesday = TEMP_FlightTuesday,
+                                                    FlightWednesday = TEMP_FlightWednesday,
+                                                    FlightThursday = TEMP_FlightThursday,
+                                                    FlightFriday = TEMP_FlightFriday,
+                                                    FlightSaterday = TEMP_FlightSaterday,
+                                                    FlightSunday = TEMP_FlightSunday,
+                                                    FlightNumber = flight.NumeroVuelo,
+                                                    FlightOperator = "",
+                                                    FlightCodeShare = false,
+                                                    FlightNextDayArrival = false,
+                                                    FlightNextDays = 0,
+                                                    FlightNonStop = true,
+                                                    FlightVia = ""
+                                                });
+                                            }
+                                        }
                                         // Prices                                     
                                         // /app/api/TarifaWeb?cupos=1&fechaVuelo=2016-12-28T00:00:00&idVuelo=86056
                                     }
