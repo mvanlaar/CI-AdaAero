@@ -10,6 +10,7 @@ using CsvHelper;
 using System.IO.Compression;
 using System.Configuration;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace StarAlliance_AirlineParser
 {
@@ -21,7 +22,7 @@ namespace StarAlliance_AirlineParser
             CultureInfo ci = new CultureInfo("en-US");
             string APIPathAirport = "airport/iata/";
             string APIPathAirline = "airline/iata/";
-
+            string citiesjson = "";
             // Getting Json for cities
             using (WebClient client = new WebClient())
             {
@@ -31,142 +32,158 @@ namespace StarAlliance_AirlineParser
                 client.Headers.Add("Referer", "https://www.ada-aero.com/");
                 client.Headers.Add(HttpRequestHeader.ContentType, "application/json;charset=utf-8");
                 client.Encoding = Encoding.UTF8;
-                string citiesjson = client.DownloadString("https://www.ada-aero.com/app/api/ServiceKiu");
-                dynamic dynJson = JsonConvert.DeserializeObject(JToken.Parse(citiesjson).ToString());
-                foreach (var from in dynJson.Citys)
+                citiesjson = client.DownloadString("https://www.ada-aero.com/app/api/ServiceKiu");
+            }
+            dynamic dynJson = JsonConvert.DeserializeObject(JToken.Parse(citiesjson).ToString());
+            foreach (var from in dynJson.Citys)
+            {
+                Console.WriteLine("Parsing flights from: {0} - {1}", from.CityName, from.IataCode);
+                foreach (var to in from.Locations)
                 {
-                    Console.WriteLine("Parsing flights from: {0} - {1}", from.CityName, from.IataCode);
-                    foreach (var to in from.Locations)
+                    // Getting Flights for a period of 1 month from now
+
+                    //DateTime StartDate = DateTime.Now;
+                    //DateTime EndDate = StartDate.AddDays(90);
+                    //int DayInterval = 1;
+                    Parallel.For(0, 90, new ParallelOptions { MaxDegreeOfParallelism = 10 }, (i, state) =>
                     {
-                        // Getting Flights for a period of 1 month from now
-
                         DateTime StartDate = DateTime.Now;
-                        DateTime EndDate = StartDate.AddDays(30);
-                        int DayInterval = 1;
-                        while (StartDate.AddDays(DayInterval) <= EndDate)
-                        {                            
-                            Console.WriteLine("Getting flight: {0} - {1} - {2}", from.CityName, to.CityName, StartDate.ToString());
-                            using (WebClient clientFlightCheck = new WebClient())
+                        StartDate = StartDate.AddDays(i);
+                        Console.WriteLine("Getting flight: {0} - {1} - {2}", from.CityName, to.CityName, StartDate.ToString());
+                        using (WebClient clientFlightCheck = new WebClient())
+                        {
+                            clientFlightCheck.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko");
+                            clientFlightCheck.Headers.Add("Accept", "application/json, text/plain, */*");
+                            clientFlightCheck.Headers.Add("Accept-Language", "en-gb,en;q=0.5");
+                            //client.Headers.Add("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7");
+                            clientFlightCheck.Headers.Add(HttpRequestHeader.ContentType, "application/json;charset=utf-8");
+                            clientFlightCheck.Encoding = Encoding.UTF8;
+                            clientFlightCheck.Headers.Add("Referer", "https://www.ada-aero.com/");
+
+                            var payloadFlightCheck = new FlightCheck
                             {
-                                clientFlightCheck.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64; Trident/7.0; rv:11.0) like Gecko");
-                                clientFlightCheck.Headers.Add("Accept", "application/json, text/plain, */*");
-                                clientFlightCheck.Headers.Add("Accept-Language", "en-gb,en;q=0.5");
-                                //client.Headers.Add("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.7");
-                                clientFlightCheck.Headers.Add(HttpRequestHeader.ContentType, "application/json;charset=utf-8");
-                                clientFlightCheck.Encoding = Encoding.UTF8;
-                                clientFlightCheck.Headers.Add("Referer", "https://www.ada-aero.com/");
+                                DepartureDateTime = StartDate.ToString("dd/MM/yyyy"),
+                                OriginLocation = from.IataCode,
+                                DestinationLocation = to.IataCode,
+                                PassengerTypeQuantityADT = "1",
+                                PassengerTypeQuantityCNN = "0"
+                            };
 
-                                var payloadFlightCheck = new FlightCheck
-                                {
-                                    DepartureDateTime = StartDate.ToString("dd/MM/yyyy"),
-                                    OriginLocation = from.IataCode,
-                                    DestinationLocation = to.IataCode,
-                                    PassengerTypeQuantityADT = "1",
-                                    PassengerTypeQuantityCNN = "0"
-                                };
+                            string response = clientFlightCheck.UploadString(new Uri("https://www.ada-aero.com/app/api/AirAvailRQ"), "POST", JsonConvert.SerializeObject(payloadFlightCheck));
+                            //Console.WriteLine(response);
+                            dynamic dynJsonResult = JsonConvert.DeserializeObject(response);
+                            foreach (var flight in dynJsonResult)
+                            {
+                                //if (flight.TipoVuelo == "Directo")
+                                //{
+                                // Only Direct flights
+                                Console.WriteLine("{0} - {1}", flight.NumeroVuelo, flight.Ruta);
 
-                                string response = clientFlightCheck.UploadString(new Uri("https://www.ada-aero.com/app/api/AirAvailRQ"), "POST", JsonConvert.SerializeObject(payloadFlightCheck));
-                                //Console.WriteLine(response);
-                                dynamic dynJsonResult = JsonConvert.DeserializeObject(response);
-                                foreach (var flight in dynJsonResult)
+                                // Parse date flight to day
+                                string TEMP_DateTime = Convert.ToString(flight.Fecha);
+                                DateTime dateValue = DateTime.Parse(TEMP_DateTime);
+                                Boolean TEMP_FlightMonday = false;
+                                Boolean TEMP_FlightTuesday = false;
+                                Boolean TEMP_FlightWednesday = false;
+                                Boolean TEMP_FlightThursday = false;
+                                Boolean TEMP_FlightFriday = false;
+                                Boolean TEMP_FlightSaterday = false;
+                                Boolean TEMP_FlightSunday = false;
+
+                                // Non Stop
+                                Boolean TEMP_FlightNonStop = true;
+
+
+                                int TEMP_Conversie = Convert.ToInt32(dateValue.DayOfWeek);
+                                if (TEMP_Conversie == 1) { TEMP_FlightSunday = true; }
+                                if (TEMP_Conversie == 2) { TEMP_FlightMonday = true; }
+                                if (TEMP_Conversie == 3) { TEMP_FlightTuesday = true; }
+                                if (TEMP_Conversie == 4) { TEMP_FlightWednesday = true; }
+                                if (TEMP_Conversie == 5) { TEMP_FlightThursday = true; }
+                                if (TEMP_Conversie == 6) { TEMP_FlightFriday = true; }
+                                if (TEMP_Conversie == 7) { TEMP_FlightSaterday = true; }
+
+                                if (flight.TipoVuelo == "Directo")
                                 {
-                                    if (flight.TipoVuelo == "Directo")
+                                    TEMP_FlightNonStop = true;
+                                }
+                                else
+                                {
+                                    TEMP_FlightNonStop = false;
+                                }
+
+                                // check if flight fly
+
+                                if (TEMP_FlightMonday | TEMP_FlightTuesday | TEMP_FlightWednesday | TEMP_FlightThursday | TEMP_FlightFriday | TEMP_FlightSaterday | TEMP_FlightSunday)
+                                {
+                                    bool alreadyExists = CIFLights.Exists(x => x.FromIATA == Convert.ToString(flight.SiglaCiudadOrigen)
+                                    && x.ToIATA == Convert.ToString(flight.SiglaCiudadDestino)
+                                    && x.FromDate == Convert.ToDateTime(flight.Fecha)
+                                    && x.ToDate == Convert.ToDateTime(flight.Fecha)
+                                    && x.FlightNumber == Convert.ToString(flight.NumeroVuelo)
+                                    && x.FlightAirline == "1DA"
+                                    && x.FlightMonday == TEMP_FlightMonday
+                                    && x.FlightTuesday == TEMP_FlightTuesday
+                                    && x.FlightWednesday == TEMP_FlightWednesday
+                                    && x.FlightThursday == TEMP_FlightThursday
+                                    && x.FlightFriday == TEMP_FlightFriday
+                                    && x.FlightSaterday == TEMP_FlightSaterday
+                                    && x.FlightSunday == TEMP_FlightSunday
+                                    && x.FlightNonStop == TEMP_FlightNonStop);
+
+
+                                    if (alreadyExists)
                                     {
-                                        // Only Direct flights
-                                        Console.WriteLine("{0} - {1}", flight.NumeroVuelo, flight.Ruta);
-
-                                        // Parse date flight to day
-                                        string TEMP_DateTime = Convert.ToString(flight.Fecha);
-                                        DateTime dateValue = DateTime.Parse(TEMP_DateTime);
-                                        Boolean TEMP_FlightMonday = false;
-                                        Boolean TEMP_FlightTuesday = false;
-                                        Boolean TEMP_FlightWednesday = false;
-                                        Boolean TEMP_FlightThursday = false;
-                                        Boolean TEMP_FlightFriday = false;
-                                        Boolean TEMP_FlightSaterday = false;
-                                        Boolean TEMP_FlightSunday = false;
-
-
-                                        int TEMP_Conversie = Convert.ToInt32(dateValue.DayOfWeek);
-                                        if (TEMP_Conversie == 1) { TEMP_FlightSunday = true; }
-                                        if (TEMP_Conversie == 2) { TEMP_FlightMonday = true; }
-                                        if (TEMP_Conversie == 3) { TEMP_FlightTuesday = true; }
-                                        if (TEMP_Conversie == 4) { TEMP_FlightWednesday = true; }
-                                        if (TEMP_Conversie == 5) { TEMP_FlightThursday = true; }
-                                        if (TEMP_Conversie == 6) { TEMP_FlightFriday = true; }
-                                        if (TEMP_Conversie == 7) { TEMP_FlightSaterday = true; }
-
-                                        // check if flight fly
-
-                                        if (TEMP_FlightMonday | TEMP_FlightTuesday | TEMP_FlightWednesday | TEMP_FlightThursday | TEMP_FlightFriday | TEMP_FlightSaterday | TEMP_FlightSunday)
+                                        Console.WriteLine("Flight Already found...");
+                                    }
+                                    else
+                                    {
+                                        CIFLights.Add(new CIFLight
                                         {
-                                            bool alreadyExists = CIFLights.Exists(x => x.FromIATA == Convert.ToString(flight.SiglaCiudadOrigen)
-                                            && x.ToIATA == Convert.ToString(flight.SiglaCiudadDestino)
-                                            && x.FromDate == Convert.ToDateTime(flight.Fecha)
-                                            && x.ToDate == Convert.ToDateTime(flight.Fecha)
-                                            && x.FlightNumber == Convert.ToString(flight.NumeroVuelo)
-                                            && x.FlightAirline == "1DA"
-                                            && x.FlightMonday == TEMP_FlightMonday
-                                            && x.FlightTuesday == TEMP_FlightTuesday
-                                            && x.FlightWednesday == TEMP_FlightWednesday
-                                            && x.FlightThursday == TEMP_FlightThursday
-                                            && x.FlightFriday == TEMP_FlightFriday
-                                            && x.FlightSaterday == TEMP_FlightSaterday
-                                            && x.FlightSunday == TEMP_FlightSunday);
-
-                                            if (alreadyExists)
-                                            {
-                                                Console.WriteLine("Flight Already found...");
-                                            }
-                                            else
-                                            {
-                                                CIFLights.Add(new CIFLight
-                                                {
-                                                    FromIATA = flight.SiglaCiudadOrigen,
-                                                    FromIATARegion = "",
-                                                    FromIATACountry = "",
-                                                    FromIATATerminal = "",
-                                                    ToIATA = flight.SiglaCiudadDestino,
-                                                    ToIATACountry = "",
-                                                    ToIATARegion = "",
-                                                    ToIATATerminal = "",
-                                                    FromDate = flight.Fecha,
-                                                    ToDate = flight.Fecha,
-                                                    ArrivalTime = flight.Llegada,
-                                                    DepartTime = flight.Salida,
-                                                    FlightAircraft = flight.Nombre,
-                                                    FlightAirline = "1DA",
-                                                    FlightMonday = TEMP_FlightMonday,
-                                                    FlightTuesday = TEMP_FlightTuesday,
-                                                    FlightWednesday = TEMP_FlightWednesday,
-                                                    FlightThursday = TEMP_FlightThursday,
-                                                    FlightFriday = TEMP_FlightFriday,
-                                                    FlightSaterday = TEMP_FlightSaterday,
-                                                    FlightSunday = TEMP_FlightSunday,
-                                                    FlightNumber = flight.NumeroVuelo,
-                                                    FlightOperator = "",
-                                                    FlightCodeShare = false,
-                                                    FlightNextDayArrival = false,
-                                                    FlightNextDays = 0,
-                                                    FlightNonStop = true,
-                                                    FlightVia = ""
-                                                });
-                                            }
-                                        }
-                                        // Prices                                     
-                                        // /app/api/TarifaWeb?cupos=1&fechaVuelo=2016-12-28T00:00:00&idVuelo=86056
+                                            FromIATA = flight.SiglaCiudadOrigen,
+                                            FromIATARegion = "",
+                                            FromIATACountry = "",
+                                            FromIATATerminal = "",
+                                            ToIATA = flight.SiglaCiudadDestino,
+                                            ToIATACountry = "",
+                                            ToIATARegion = "",
+                                            ToIATATerminal = "",
+                                            FromDate = flight.Fecha,
+                                            ToDate = flight.Fecha,
+                                            ArrivalTime = flight.Llegada,
+                                            DepartTime = flight.Salida,
+                                            FlightAircraft = flight.Nombre,
+                                            FlightAirline = "1DA",
+                                            FlightMonday = TEMP_FlightMonday,
+                                            FlightTuesday = TEMP_FlightTuesday,
+                                            FlightWednesday = TEMP_FlightWednesday,
+                                            FlightThursday = TEMP_FlightThursday,
+                                            FlightFriday = TEMP_FlightFriday,
+                                            FlightSaterday = TEMP_FlightSaterday,
+                                            FlightSunday = TEMP_FlightSunday,
+                                            FlightNumber = flight.NumeroVuelo,
+                                            FlightOperator = "",
+                                            FlightCodeShare = false,
+                                            FlightNextDayArrival = false,
+                                            FlightNextDays = 0,
+                                            FlightNonStop = TEMP_FlightNonStop,
+                                            FlightVia = ""
+                                        });
                                     }
                                 }
+                                // Prices                                     
+                                // /app/api/TarifaWeb?cupos=1&fechaVuelo=2016-12-28T00:00:00&idVuelo=86056
+                                //}
                             }
-                            // End Date loop
-                            StartDate = StartDate.AddDays(DayInterval);
                         }
+                    });
 
-                        
-                        //
-                    }
+
+
+                    //
                 }
             }
+
 
             // Output
             // You'll do something else with it, here I write it to a console window
@@ -274,7 +291,7 @@ namespace StarAlliance_AirlineParser
                         ToAirportName = Convert.ToString(AirportResponseJson[0].name);
                     }
 
-                   
+
                     csvroutes.WriteField(routes[i].FromIATA + routes[i].ToIATA + routes[i].FlightAirline);
                     csvroutes.WriteField(routes[i].FlightAirline);
                     csvroutes.WriteField("");
@@ -288,7 +305,7 @@ namespace StarAlliance_AirlineParser
                     }
                     csvroutes.WriteField(""); // routes[i].FlightAircraft + ";" + CIFLights[i].FlightAirline + ";" + CIFLights[i].FlightOperator + ";" + CIFLights[i].FlightCodeShare
                     // Domestic Flight
-                    csvroutes.WriteField(1102);                    
+                    csvroutes.WriteField(1102);
                     csvroutes.WriteField("");
                     csvroutes.WriteField("");
                     csvroutes.WriteField("");
