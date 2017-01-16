@@ -140,13 +140,9 @@ namespace StarAlliance_AirlineParser
                                     {
                                         CIFLights.Add(new CIFLight
                                         {
-                                            FromIATA = flight.SiglaCiudadOrigen,
-                                            FromIATARegion = "",
-                                            FromIATACountry = "",
+                                            FromIATA = flight.SiglaCiudadOrigen,                                            
                                             FromIATATerminal = "",
-                                            ToIATA = flight.SiglaCiudadDestino,
-                                            ToIATACountry = "",
-                                            ToIATARegion = "",
+                                            ToIATA = flight.SiglaCiudadDestino,                                            
                                             ToIATATerminal = "",
                                             FromDate = flight.Fecha,
                                             ToDate = flight.Fecha,
@@ -274,6 +270,11 @@ namespace StarAlliance_AirlineParser
                 {
                     string FromAirportName = null;
                     string ToAirportName = null;
+                    string FromAirportCountry = null;
+                    string FromAirportContinent = null;
+                    string ToAirportCountry = null;
+                    string ToAirportContinent = null;
+
                     using (var client = new WebClient())
                     {
                         client.Encoding = Encoding.UTF8;
@@ -281,6 +282,8 @@ namespace StarAlliance_AirlineParser
                         var json = client.DownloadString(url);
                         dynamic AirportResponseJson = JsonConvert.DeserializeObject(json);
                         FromAirportName = Convert.ToString(AirportResponseJson[0].name);
+                        FromAirportCountry = Convert.ToString(AirportResponseJson[0].country_code);
+                        FromAirportContinent = Convert.ToString(AirportResponseJson[0].continent);
                     }
                     using (var client = new WebClient())
                     {
@@ -289,23 +292,35 @@ namespace StarAlliance_AirlineParser
                         var json = client.DownloadString(url);
                         dynamic AirportResponseJson = JsonConvert.DeserializeObject(json);
                         ToAirportName = Convert.ToString(AirportResponseJson[0].name);
+                        ToAirportCountry = Convert.ToString(AirportResponseJson[0].country_code);
+                        ToAirportContinent = Convert.ToString(AirportResponseJson[0].continent);
                     }
 
 
                     csvroutes.WriteField(routes[i].FromIATA + routes[i].ToIATA + routes[i].FlightAirline);
                     csvroutes.WriteField(routes[i].FlightAirline);
-                    csvroutes.WriteField("");
-                    if (FromAirportName != null & ToAirportName != null)
+                    csvroutes.WriteField(routes[i].FromIATA + routes[i].ToIATA);
+                    csvroutes.WriteField(FromAirportName + " - " + ToAirportName);
+                    csvroutes.WriteField(""); // routes[i].FlightAircraft + ";" + CIFLights[i].FlightAirline + ";" + CIFLights[i].FlightOperator + ";" + CIFLights[i].FlightCodeShare
+                    // Domestic Flight
+                    if (FromAirportCountry == ToAirportCountry)
                     {
-                        csvroutes.WriteField(FromAirportName + " - " + ToAirportName);
+                        // Colombian internal flight domestic
+                        csvroutes.WriteField(1102);
                     }
                     else
                     {
-                        csvroutes.WriteField(routes[i].FromIATA + routes[i].ToIATA + routes[i].FlightAirline);
+                        if (FromAirportContinent == ToAirportContinent)
+                        {
+                            // International Flight
+                            csvroutes.WriteField(1101);
+                        }
+                        else
+                        {
+                            // Intercontinental Flight
+                            csvroutes.WriteField(1103);
+                        }
                     }
-                    csvroutes.WriteField(""); // routes[i].FlightAircraft + ";" + CIFLights[i].FlightAirline + ";" + CIFLights[i].FlightOperator + ";" + CIFLights[i].FlightCodeShare
-                    // Domestic Flight
-                    csvroutes.WriteField(1102);
                     csvroutes.WriteField("");
                     csvroutes.WriteField("");
                     csvroutes.WriteField("");
@@ -564,13 +579,9 @@ namespace StarAlliance_AirlineParser
         {
             // Auto-implemented properties. 
 
-            public string FromIATA;
-            public string FromIATACountry;
-            public string FromIATARegion;
+            public string FromIATA;            
             public string FromIATATerminal;
-            public string ToIATA;
-            public string ToIATACountry;
-            public string ToIATARegion;
+            public string ToIATA;            
             public string ToIATATerminal;
             public DateTime FromDate;
             public DateTime ToDate;
