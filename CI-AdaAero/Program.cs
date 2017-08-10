@@ -11,6 +11,7 @@ using System.IO.Compression;
 using System.Configuration;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Threading;
 
 namespace StarAlliance_AirlineParser
 {
@@ -20,6 +21,8 @@ namespace StarAlliance_AirlineParser
         {
             List<CIFLight> CIFLights = new List<CIFLight> { };
             CultureInfo ci = new CultureInfo("en-US");
+            Thread.CurrentThread.CurrentCulture = ci;
+            Thread.CurrentThread.CurrentUICulture = ci;
             string APIPathAirport = "airport/iata/";
             string APIPathAirline = "airline/iata/";
             string citiesjson = "";
