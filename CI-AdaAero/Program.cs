@@ -226,7 +226,7 @@ namespace StarAlliance_AirlineParser
                     using (var client = new WebClient())
                     {
                         client.Encoding = Encoding.UTF8;
-                        string url = ConfigurationManager.AppSettings.Get("APIUrl") + APIPathAirline + airlines[i].FlightAirline;
+                        string url = ConfigurationManager.AppSettings.Get("APIUrl") + APIPathAirline + airlines[i].FlightAirline.Trim();
                         var json = client.DownloadString(url);
                         dynamic AirlineResponseJson = JsonConvert.DeserializeObject(json);
                         csv.WriteField(Convert.ToString(AirlineResponseJson[0].code));
@@ -365,7 +365,7 @@ namespace StarAlliance_AirlineParser
 
                         csvstops.WriteField(Convert.ToString(AirportResponseJson[0].code));
                         csvstops.WriteField(Convert.ToString(AirportResponseJson[0].name));
-                        csvstops.WriteField("");
+                        csvstops.WriteField(Convert.ToString(AirportResponseJson[0].city));
                         csvstops.WriteField(Convert.ToString(AirportResponseJson[0].lat));
                         csvstops.WriteField(Convert.ToString(AirportResponseJson[0].lng));
                         csvstops.WriteField("");
